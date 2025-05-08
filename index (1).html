@@ -1,0 +1,367 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Legacy Lenses</title>
+  <style>
+    *,::before,::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb;}
+    html{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif;}
+    body{margin:0;}
+    .bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity));}
+    .flex{display:flex;}
+    .items-center{align-items:center;}
+    .justify-center{justify-content:center;}
+    .min-h-screen{min-height:100vh;}
+    .max-w-4xl{max-width:64rem;}
+    .mx-auto{margin-left:auto;margin-right:auto;}
+    .p-4{padding:1rem;}
+    .bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity));}
+    .rounded-lg{border-radius:0.5rem;}
+    .shadow-lg{box-shadow:0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);}
+    .text-2xl{font-size:1.5rem;line-height:2rem;}
+    .font-bold{font-weight:700;}
+    .mb-4{margin-bottom:1rem;}
+    .text-center{text-align:center;}
+    .space-x-4{--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * (1 - var(--tw-space-x-reverse)));}
+    .px-4{padding-left:1rem;padding-right:1rem;}
+    .py-2{padding-top:0.5rem;padding-bottom:0.5rem;}
+    .bg-blue-500{--tw-bg-opacity:1;background-color:rgb(59 130 246 / var(--tw-bg-opacity));}
+    .bg-green-500{--tw-bg-opacity:1;background-color:rgb(34 197 94 / var(--tw-bg-opacity));}
+    .bg-red-500{--tw-bg-opacity:1;background-color:rgb(239 68 68 / var(--tw-bg-opacity));}
+    .bg-purple-500{--tw-bg-opacity:1;background-color:rgb(168 85 247 / var(--tw-bg-opacity));}
+    .text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity));}
+    .rounded{border-radius:0.25rem;}
+    .hover\:bg-blue-600:hover{--tw-bg-opacity:1;background-color:rgb(37 99 235 / var(--tw-bg-opacity));}
+    .hover\:bg-green-600:hover{--tw-bg-opacity:1;background-color:rgb(22 163 74 / var(--tw-bg-opacity));}
+    .hover\:bg-red-600:hover{--tw-bg-opacity:1;background-color:rgb(220 38 38 / var(--tw-bg-opacity));}
+    .hover\:bg-purple-600:hover{--tw-bg-opacity:1;background-color:rgb(147 51 234 / var(--tw-bg-opacity));}
+    .text-red-500{--tw-text-opacity:1;color:rgb(239 68 68 / var(--tw-text-opacity));}
+    .w-full{width:100%;}
+    .h-64{height:16rem;}
+    .bg-black{--tw-bg-opacity:1;background-color:rgb(0 0 0 / var(--tw-bg-opacity));}
+    .border{border-width:1px;}
+    .flex-wrap{flex-wrap:wrap;}
+  </style>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7.22.10/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Error Boundary Component
+    class ErrorBoundary extends React.Component {
+      state = { error: null };
+      static getDerivedStateFromError(error) {
+        return { error: error.message };
+      }
+      render() {
+        if (this.state.error) {
+          return (
+            <div className="text-red-500 p-4 text-center">
+              <h1>Error: {this.state.error}</h1>
+              <p>Please ensure this app is running on HTTPS and refresh the page.</p>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    const App = () => {
+      const [mode, setMode] = useState(null); // 'camera' or 'viewer'
+      const [peerId, setPeerId] = useState('');
+      const [remotePeerId, setRemotePeerId] = useState('');
+      const [isRecording, setIsRecording] = useState(false);
+      const [bluetoothDevice, setBluetoothDevice] = useState(null);
+      const [error, setError] = useState('');
+      const [isLoading, setIsLoading] = useState(true);
+      const videoRef = useRef(null);
+      const remoteVideoRef = useRef(null);
+      const mediaRecorderRef = useRef(null);
+      const recordedChunksRef = useRef([]);
+      const peerRef = useRef(null);
+
+      // Check HTTPS
+      useEffect(() => {
+        if (window.location.protocol !== 'https:') {
+          setError('Legacy Lenses requires HTTPS for camera and Bluetooth access.');
+          setIsLoading(false);
+        }
+      }, []);
+
+      // Initialize PeerJS for WebRTC
+      useEffect(() => {
+        if (!window.Peer) {
+          setError('PeerJS failed to load. Please check your internet connection.');
+          setIsLoading(false);
+          return;
+        }
+        peerRef.current = new Peer();
+        peerRef.current.on('open', (id) => {
+          setPeerId(id);
+          setIsLoading(false);
+        });
+        peerRef.current.on('error', (err) => {
+          setError('PeerJS error: ' + err.message);
+          setIsLoading(false);
+        });
+        peerRef.current.on('call', (call) => {
+          if (mode === 'camera') {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+              .then((stream) => {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play().catch((e) => console.error('Video play failed:', e));
+                call.answer(stream);
+                call.on('stream', (remoteStream) => {
+                  // Handle incoming stream if needed
+                });
+              })
+              .catch((err) => setError('Camera access denied: ' + err.message));
+          }
+        });
+        return () => peerRef.current && peerRef.current.destroy();
+      }, [mode]);
+
+      // Connect to Bluetooth device for Legacy Lenses control
+      const connectBluetooth = async () => {
+        try {
+          if (!navigator.bluetooth) {
+            setError('Web Bluetooth is not supported in this browser.');
+            return;
+          }
+          const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['battery_service'] }],
+            optionalServices: ['generic_access']
+          });
+          setBluetoothDevice(device);
+          setError('');
+        } catch (err) {
+          setError('Bluetooth connection failed: ' + err.message);
+        }
+      };
+
+      // Start video streaming for Legacy Lenses
+      const startStreaming = () => {
+        if (mode === 'viewer' && remotePeerId) {
+          navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then((stream) => {
+              const call = peerRef.current.call(remotePeerId, stream);
+              call.on('stream', (remoteStream) => {
+                remoteVideoRef.current.srcObject = remoteStream;
+                remoteVideoRef.current.play().catch((e) => console.error('Remote video play failed:', e));
+              });
+            })
+            .catch((err) => setError('Streaming failed: ' + err.message));
+        } else {
+          setError('Please enter a valid Camera Peer ID.');
+        }
+      };
+
+      // Start/stop recording for Legacy Lenses
+      const toggleRecording = () => {
+        if (!isRecording) {
+          navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then((stream) => {
+              videoRef.current.srcObject = stream;
+              videoRef.current.play().catch((e) => console.error('Video play failed:', e));
+              mediaRecorderRef.current = new MediaRecorder(stream);
+              mediaRecorderRef.current.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                  recordedChunksRef.current.push(event.data);
+                }
+              };
+              mediaRecorderRef.current.onstop = () => {
+                const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `legacy-lenses-${Date.now()}.webm`;
+                a.click();
+                URL.revokeObjectURL(url);
+                recordedChunksRef.current = [];
+              };
+              mediaRecorderRef.current.start();
+              setIsRecording(true);
+              if (bluetoothDevice) {
+                console.log('Sending start recording signal via Bluetooth for Legacy Lenses');
+              }
+            })
+            .catch((err) => setError('Recording failed: ' + err.message));
+        } else {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+          if (bluetoothDevice) {
+            console.log('Sending stop recording signal via Bluetooth for Legacy Lenses');
+          }
+        }
+      };
+
+      // Export video to Viewer or cloud for Legacy Lenses
+      const exportVideo = () => {
+        if (recordedChunksRef.current.length > 0) {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `legacy-lenses-export-${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+          console.log('Exporting video to Viewer or cloud for Legacy Lenses');
+        } else {
+          setError('No recorded video to export');
+        }
+      };
+
+      // Switch camera (front/rear) for Legacy Lenses
+      const switchCamera = () => {
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: videoRef.current.srcObject?.getVideoTracks()[0].getSettings().facingMode === 'user' ? 'environment' : 'user' },
+          audio: true
+        })
+          .then((stream) => {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch((e) => console.error('Video play failed:', e));
+          })
+          .catch((err) => setError('Camera switch failed: ' + err.message));
+      };
+
+      if (isLoading) {
+        return <div className="text-center p-4">Loading Legacy Lenses...</div>;
+      }
+
+      return (
+        <ErrorBoundary>
+          <div className="max-w-4xl mx-auto p-4 bg-white rounded-lg shadow-lg">
+            <h1 className="text-2xl font-bold mb-4 text-center">Legacy Lenses</h1>
+            {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
+            {!mode ? (
+              <div className="flex justify-center space-x-4">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  onClick={() => setMode('camera')}
+                >
+                  Use as Camera
+                </button>
+                <button
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  onClick={() => setMode('viewer')}
+                >
+                  Use as Viewer
+                </button>
+              </div>
+            ) : (
+              <div>
+                {mode === 'camera' && (
+                  <div>
+                    <p className="mb-2 text-center">Your Peer ID: {peerId || 'Connecting...'}</p>
+                    <video ref={videoRef} className="w-full h-64 bg-black mb-4" autoPlay playsInline muted />
+                    <div className="flex justify-center space-x-4 flex-wrap">
+                      <button
+                        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                        onClick={toggleRecording}
+                      >
+                        {isRecording ? 'Stop Recording' : 'Start Recording'}
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={switchCamera}
+                      >
+                        Switch Camera
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                        onClick={connectBluetooth}
+                      >
+                        Connect Bluetooth
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        onClick={exportVideo}
+                      >
+                        Export Video
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {mode === 'viewer' && (
+                  <div>
+                    <input
+                      type="text"
+                      className="w-full p-2 mb-4 border rounded"
+                      placeholder="Enter Camera Peer ID"
+                      value={remotePeerId}
+                      onChange={(e) => setRemotePeerId(e.target.value)}
+                    />
+                    <video ref={remoteVideoRef} className="w-full h-64 bg-black mb-4" autoPlay playsInline />
+                    <div className="flex justify-center space-x-4">
+                      <button
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={startStreaming}
+                      >
+                        Connect to Camera
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                        onClick={connectBluetooth}
+                      >
+                        Connect Bluetooth
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </ErrorBoundary>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
