@@ -48,6 +48,7 @@
     .container { max-width: 64rem; padding: 1rem; background: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
     h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 1rem; }
     .error { color: #dc2626; text-align: center; margin-bottom: 1rem; }
+    .debug { color: #4b5563; text-align: center; margin-bottom: 1rem; }
     .buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
     button { padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 0.25rem; cursor: pointer; }
     button:hover { background: #2563eb; }
@@ -66,6 +67,7 @@
   <div class="container">
     <h1>Legacy Lenses</h1>
     <div id="error" class="error"></div>
+    <div id="debug" class="debug"></div>
     <div id="mode-selection" class="buttons">
       <button id="camera-btn">Use as Camera</button>
       <button id="viewer-btn" class="green">Use as Viewer</button>
@@ -89,6 +91,7 @@
   </div>
   <script>
     const errorDiv = document.getElementById('error');
+    const debugDiv = document.getElementById('debug');
     const modeSelection = document.getElementById('mode-selection');
     const cameraView = document.getElementById('camera-view');
     const viewerView = document.getElementById('viewer-view');
@@ -108,24 +111,32 @@
     let facingMode = 'user';
     let isRecording = false;
 
-    // Handle HTTPS check
+    // Debug protocol
+    debugDiv.textContent = `Current URL: ${window.location.href} | Protocol: ${window.location.protocol}`;
+
+    // Handle HTTPS check with manual redirect link
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
       const secureUrl = `https://${window.location.hostname}${window.location.pathname}`;
-      errorDiv.innerHTML = `HTTPS required for camera access. <a href="${secureUrl}" target="_blank">Click here to use the secure URL</a>.`;
+      errorDiv.innerHTML = `HTTPS required for camera access. <a href="${secureUrl}" target="_self">Click here to use the secure URL</a>.`;
     } else {
       // Initialize PeerJS
+      console.log('Initializing PeerJS...');
       if (typeof Peer !== 'undefined') {
         peer = new Peer({ debug: 3 });
         peer.on('open', (id) => {
+          console.log('PeerJS connected. Peer ID:', id);
           peerIdText.textContent = `Your Peer ID: ${id}`;
         });
         peer.on('error', (err) => {
+          console.error('PeerJS error:', err);
           errorDiv.textContent = `PeerJS error: ${err.message}`;
         });
         peer.on('call', (call) => {
+          console.log('Received a call:', call);
           if (currentStream) call.answer(currentStream);
         });
       } else {
+        console.warn('PeerJS not loaded.');
         errorDiv.textContent = 'PeerJS not loaded. Camera mode will work, but streaming is disabled.';
       }
     }
@@ -133,19 +144,23 @@
     // Mode Selection
     document.getElementById('camera-btn').addEventListener('click', () => {
       if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
+        console.log('Switching to Camera mode...');
         modeSelection.classList.add('hidden');
         cameraView.classList.remove('hidden');
         startCamera();
       } else {
+        console.error('Cannot switch to Camera mode: HTTPS required.');
         errorDiv.textContent = 'Switch to HTTPS to use Camera mode.';
       }
     });
 
     document.getElementById('viewer-btn').addEventListener('click', () => {
       if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
+        console.log('Switching to Viewer mode...');
         modeSelection.classList.add('hidden');
         viewerView.classList.remove('hidden');
       } else {
+        console.error('Cannot switch to Viewer mode: HTTPS required.');
         errorDiv.textContent = 'Switch to HTTPS to use Viewer mode.';
       }
     });
@@ -153,15 +168,19 @@
     // Start Camera
     function startCamera() {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log('Requesting camera access with facingMode:', facingMode);
         navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true })
           .then((stream) => {
+            console.log('Camera access granted.');
             currentStream = stream;
             cameraVideo.srcObject = stream;
           })
           .catch((err) => {
+            console.error('Camera access failed:', err);
             errorDiv.textContent = `Camera error: ${err.message || 'Access denied'}`;
           });
       } else {
+        console.error('Camera not supported.');
         errorDiv.textContent = 'Camera not supported on this device.';
       }
     }
@@ -170,8 +189,11 @@
     switchBtn.addEventListener('click', () => {
       if (currentStream) {
         facingMode = facingMode === 'user' ? 'environment' : 'user';
+        console.log('Switching camera to facingMode:', facingMode);
         currentStream.getTracks().forEach(track => track.stop());
         startCamera();
+      } else {
+        console.warn('No active stream to switch.');
       }
     });
 
@@ -180,13 +202,18 @@
       if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
         if (!isRecording) {
           if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            console.log('Starting recording with facingMode:', facingMode);
             navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true })
               .then((stream) => {
                 mediaRecorder = new MediaRecorder(stream);
                 mediaRecorder.ondataavailable = (event) => {
-                  if (event.data.size > 0) recordedChunks.push(event.data);
+                  if (event.data.size > 0) {
+                    console.log('Recording data available:', event.data);
+                    recordedChunks.push(event.data);
+                  }
                 };
                 mediaRecorder.onstop = () => {
+                  console.log('Recording stopped. Saving video...');
                   const blob = new Blob(recordedChunks, { type: 'video/webm' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -201,15 +228,18 @@
                 recordBtn.textContent = 'Stop Recording';
               })
               .catch((err) => {
+                console.error('Recording failed:', err);
                 errorDiv.textContent = `Recording error: ${err.message || 'Access denied'}`;
               });
           }
         } else {
+          console.log('Stopping recording...');
           mediaRecorder.stop();
           isRecording = false;
           recordBtn.textContent = 'Start Recording';
         }
       } else {
+        console.error('Cannot record: HTTPS required.');
         errorDiv.textContent = 'Switch to HTTPS to record video.';
       }
     });
@@ -218,6 +248,7 @@
     exportBtn.addEventListener('click', () => {
       if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
         if (recordedChunks.length > 0) {
+          console.log('Exporting recorded video...');
           const blob = new Blob(recordedChunks, { type: 'video/webm' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -226,9 +257,11 @@
           a.click();
           URL.revokeObjectURL(url);
         } else {
+          console.warn('No recorded chunks to export.');
           errorDiv.textContent = 'No video recorded to export.';
         }
       } else {
+        console.error('Cannot export: HTTPS required.');
         errorDiv.textContent = 'Switch to HTTPS to export video.';
       }
     });
@@ -238,24 +271,30 @@
       if (window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
         const remotePeerId = remotePeerIdInput.value.trim();
         if (!remotePeerId) {
+          console.warn('No Peer ID provided.');
           errorDiv.textContent = 'Please enter a valid Camera Peer ID.';
           return;
         }
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && peer) {
+          console.log('Connecting to Peer ID:', remotePeerId);
           navigator.mediaDevices.getUserMedia({ video: true, audio: true })
             .then((stream) => {
               const call = peer.call(remotePeerId, stream);
               call.on('stream', (remoteStream) => {
+                console.log('Received remote stream.');
                 remoteVideo.srcObject = remoteStream;
               });
             })
             .catch((err) => {
+              console.error('Connection failed:', err);
               errorDiv.textContent = `Connection error: ${err.message || 'Failed to connect'}`;
             });
         } else {
+          console.warn('Streaming not supported.');
           errorDiv.textContent = 'Streaming not supported.';
         }
       } else {
+        console.error('Cannot connect: HTTPS required.');
         errorDiv.textContent = 'Switch to HTTPS to connect to a camera.';
       }
     });
